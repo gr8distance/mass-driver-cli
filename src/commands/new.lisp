@@ -185,7 +185,7 @@ tmp/
   (format nil "FROM fukamachi/sbcl:latest AS builder
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \\
-    libev-dev libsqlite3-dev libpq-dev libmysqlclient-dev \\
+    libev-dev libsqlite3-dev libpq-dev libmariadb-dev \\
     && rm -rf /var/lib/apt/lists/*
 COPY . .
 RUN if command -v area51 > /dev/null 2>&1; then \\
