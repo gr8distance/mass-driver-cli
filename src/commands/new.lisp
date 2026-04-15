@@ -147,7 +147,8 @@
        (format s "                    :components ((:file \"app\")))~%")
        (format s "                   (:module \"pages\"~%")
        (format s "                    :depends-on (\"components\" \"layouts\")~%")
-       (format s "                    :components ((:file \"home\")))~%"))
+       (format s "                    :components ((:file \"home\")~%")
+       (format s "                                 (:file \"about\")))~%"))
      (format s "                   ))~%")
      (format s "                 (:file \"main\" :depends-on (\"package\" \"config\"~a \"web\")))))~%"
              (if db " \"app\"" ""))
@@ -276,7 +277,13 @@ CMD [\"./~a\"]
   (write-file
    (format nil "~asrc/config.lisp" dir)
    (format nil "(in-package #:~a)
-" name)))
+
+;;; App-specific configuration
+;;; The framework provides: env, env-int, env-bool, config, reload-config
+;;; Add your own config values here:
+
+;; (defparameter *app-name* (env \"APP_NAME\" ~s))
+" name name)))
 
 (defun gen-main-file (name dir &key api-p db)
   (write-file
@@ -285,13 +292,12 @@ CMD [\"./~a\"]
      (format s "(in-package #:~a)~%~%" name)
      (format s "(defrouter *router*~%")
      (format s "  (pipeline :browser~%")
-     (format s "    'request-logger~%")
+     (format s "    'logger-middleware~%")
+     (format s "    'body-parser-middleware~%")
      (format s "    'session-middleware)~%~%")
      (format s "  (scope \"/\" (:browser)~%")
-     (format s "    (:get \"/\" 'page/index)))~%~%")
-     (format s "(defun request-logger (conn next)~%")
-     (format s "  (format t \"[~~a] ~~a~~%%\" (conn-method conn) (conn-path conn))~%")
-     (format s "  (funcall next conn))~%~%")
+     (format s "    (:get \"/\"      'page/index)~%")
+     (format s "    (:get \"/about\" 'page/about)))~%~%")
      (format s "(defun make-app ()~%")
      (format s "  (lack:builder~%")
      (format s "    (:session)~%")
@@ -305,7 +311,8 @@ CMD [\"./~a\"]
        (format s "  (compile-styles)~%"))
      (when db
        (format s "  (connect-db)~%"))
-     (format s "  (format t \"Starting ~a on port ~~a (~~a)~~%%\" port server)~%" name)
+     (format s "  (setup-logger)~%")
+     (format s "  (log-info \"Starting ~a on port ~~a (~~a)\" port server)~%" name)
      (format s "  (clack:clackup (make-app) :port port :server server))~%~%")
      (format s "(defun main ()~%")
      (format s "  (reload-config)~%")
@@ -334,12 +341,17 @@ CMD [\"./~a\"]
 (defhandler page/index (conn)
   (render conn 'pages/home
           :title ~s
-          :message \"Welcome\"))
-" name name))))
+          :message \"Welcome to ~a\"))
+
+(defhandler page/about (conn)
+  (render conn 'pages/about
+          :title \"About\"))
+" name name name))))
 
 ;;; --- Views (HTML only) ---
 
 (defun gen-web-views (name dir)
+  ;; Components
   (write-file
    (format nil "~asrc/web/components/common.lisp" dir)
    (format nil "(in-package #:~a)
@@ -349,8 +361,16 @@ CMD [\"./~a\"]
      (:h2 ,title)
      (:div :class \"card-body\"
        ,@children)))
-" name))
 
+(defcomponent navbar (&key (brand ~s))
+  `(:nav :class \"navbar\"
+     (:div :class \"max-w-5xl mx-auto w-full flex items-center\"
+       (:a :href \"/\" :class \"navbar-brand\" ,brand)
+       (:div :class \"navbar-links\"
+         ,@children))))
+" name name))
+
+  ;; Layout
   (write-file
    (format nil "~asrc/web/layouts/app.lisp" dir)
    (format nil "(in-package #:~a)
@@ -367,24 +387,60 @@ CMD [\"./~a\"]
          (:script :src \"https://cdn.tailwindcss.com\")
          (:link :rel \"stylesheet\" :href \"/static/css/app.css\"))
        (:body :class \"min-h-screen bg-gray-50\"
+         (navbar
+           (:a :href \"/\" \"Home\")
+           (:a :href \"/about\" \"About\"))
          ,@children
+         (:footer :class \"max-w-5xl mx-auto px-8 py-8 text-center text-sm text-gray-400\"
+           \"Powered by \"
+           (:a :href \"https://github.com/gr8distance/mass-driver\" :class \"underline\"
+             \"mass-driver\"))
          (:script :src \"/static/js/app.js\")))))
 " name name))
 
+  ;; Home page
   (write-file
    (format nil "~asrc/web/pages/home.lisp" dir)
    (format nil "(in-package #:~a)
 
 (defview pages/home (title message)
   (app-layout :title title
-    (:main :class \"max-w-3xl mx-auto px-8 py-16\"
-      (:h1 :class \"text-3xl font-bold mb-4\" message)
-      (card :title \"Getting Started\"
-        (:p \"Edit \"
-            (:code \"src/web/pages/home.lisp\")
-            \" to get started.\")))))
+    (:main :class \"max-w-5xl mx-auto px-8 py-12\"
+      (:div :class \"text-center py-12\"
+        (:h1 :class \"text-4xl font-bold mb-4 text-gray-900\" message)
+        (:p :class \"text-lg text-gray-500 mb-8\"
+          \"A micro web framework for Common Lisp\"))
+      (:div :class \"grid gap-6 md:grid-cols-3\"
+        (card :title \"Components\"
+          (:p \"Build reusable UI with \"
+              (:code \"defcomponent\") \".\"))
+        (card :title \"Routing\"
+          (:p \"Phoenix-style DSL with \"
+              (:code \"defrouter\") \" and \"
+              (:code \"scope\") \".\"))
+        (card :title \"Database\"
+          (:p \"Models via \"
+              (:code \"defmodel\") \", migrations via \"
+              (:code \"migrate\") \".\"))))))
 " name))
 
+  ;; About page
+  (write-file
+   (format nil "~asrc/web/pages/about.lisp" dir)
+   (format nil "(in-package #:~a)
+
+(defview pages/about (title)
+  (app-layout :title title
+    (:main :class \"max-w-3xl mx-auto px-8 py-12\"
+      (:h1 :class \"text-3xl font-bold mb-6\" \"About\")
+      (:div :class \"prose\"
+        (:p ~s \" is built with \"
+            (:a :href \"https://github.com/gr8distance/mass-driver\" \"mass-driver\")
+            \", a micro web framework for Common Lisp.\")
+        (:p \"Edit \" (:code \"src/web/pages/about.lisp\") \" to customize this page.\")))))
+" name name))
+
+  ;; Static assets
   (write-file
    (format nil "~astatic/css/app.css" dir)
    "/* Generated by Lass — run (compile-styles) to regenerate */
