@@ -185,7 +185,7 @@ tmp/
   (format nil "FROM fukamachi/sbcl:latest AS builder
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \\
-    libev-dev libsqlite3-dev libpq-dev libmariadb-dev git ca-certificates \\
+    libev-dev libsqlite3-dev libpq-dev libmariadb-dev git ca-certificates curl \\
     && rm -rf /var/lib/apt/lists/*
 RUN git clone --depth 1 https://github.com/gr8distance/area51.git /tmp/area51 \\
     && cd /tmp/area51 \\
