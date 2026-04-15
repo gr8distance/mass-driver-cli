@@ -102,17 +102,7 @@
      (format s "  :license \"MIT\"~%")
      (format s "  :entry-point \"main\")~%~%")
      (format s "(deps~%")
-     (format s "  (\"clack\")~%")
-     (format s "  (\"lack\")~%")
-     (format s "  (\"woo\")~%")
-     (format s "  (\"hunchentoot\")~%")
-     (unless api-p
-       (format s "  (\"spinneret\")~%")
-       (format s "  (\"lass\")~%"))
-     (when db
-       (format s "  (\"mito\")~%")
-       (format s "  (\"sxql\")~%"))
-     (format s "  (\"yason\")~%")
+     (format s "  (\"mass-driver\" :github \"gr8distance/mass-driver\")~%")
      (format s "  (\"rove\"))~%"))))
 
 ;;; --- .asd ---
