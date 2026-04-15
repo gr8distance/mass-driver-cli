@@ -185,18 +185,15 @@ tmp/
   (format nil "FROM fukamachi/sbcl:latest AS builder
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \\
-    libev-dev libsqlite3-dev libpq-dev libmariadb-dev \\
+    libev-dev libsqlite3-dev libpq-dev libmariadb-dev git ca-certificates \\
     && rm -rf /var/lib/apt/lists/*
+RUN git clone --depth 1 https://github.com/gr8distance/area51.git /tmp/area51 \\
+    && cd /tmp/area51 \\
+    && sbcl --non-interactive --load build.lisp \\
+    && cp bin/area51 /usr/local/bin/area51 \\
+    && rm -rf /tmp/area51
 COPY . .
-RUN if command -v area51 > /dev/null 2>&1; then \\
-      area51 install && area51 build; \\
-    else \\
-      sbcl --non-interactive \\
-           --eval '(load (merge-pathnames \"quicklisp/setup.lisp\" (user-homedir-pathname)))' \\
-           --eval '(push (truename \".\") asdf:*central-registry*)' \\
-           --eval '(ql:quickload ~s)' \\
-           --eval '(sb-ext:save-lisp-and-die ~s :toplevel #'\"'\"'~a:main :executable t)'; \\
-    fi
+RUN area51 install && area51 build
 
 FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y --no-install-recommends \\
@@ -205,7 +202,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \\
 RUN useradd -m -s /bin/bash app
 USER app
 WORKDIR /home/app
-COPY --from=builder /app/~a /home/app/~a
+COPY --from=builder /app/bin/~a /home/app/~a
 COPY --from=builder /app/static /home/app/static
 ENV PORT=3000
 EXPOSE 3000
